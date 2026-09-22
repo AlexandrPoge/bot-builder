@@ -4,14 +4,14 @@
 
 1. Откройте n8n → **Workflows** → **Import from File**.
 2. Выберите `01-intake-foundation.json`.
-3. Нажмите **Execute Workflow**.
+3. Для ручной проверки нажмите **Execute Workflow**; для Telegram включите workflow (`Active`).
 4. В узле `Normalize lead` убедитесь, что появились: `lead_id`, `created_at`, `normalized_text`, `message_hash` и `status: new`.
 
-Пока это локальный учебный сценарий: заявка создаётся в узле `Demo lead`. Следующий этап заменит его на Telegram Trigger или Webhook.
+В workflow есть два входа: `Demo lead` для ручной проверки и `Telegram lead webhook` для бота. Webhook принимает `POST /webhook/telegram-lead`.
 
 ## Запись без дублей
 
-В локальном n8n после `Normalize lead` добавлен узел **Append or update row in sheet**. Он сопоставляет строку по `message_hash` и использует автоматическое сопоставление одноимённых полей. Повтор одного и того же обращения обновляет найденную строку, а не создаёт новую.
+После `Normalize lead` подключите узел **Append or update row in sheet** по инструкции в `docs/google-sheets-setup.md`. Он сопоставляет строку по `message_hash` и использует автоматическое сопоставление одноимённых полей. Повтор одного и того же обращения обновляет найденную строку, а не создаёт новую.
 
 Не включайте workflow (`Active`) до подключения реального источника заявок.
 

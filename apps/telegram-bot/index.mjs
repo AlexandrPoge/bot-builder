@@ -6,7 +6,16 @@ if (!token) {
 }
 
 const telegramApi = `https://api.telegram.org/bot${token}`;
+const sessions = new Map();
 let offset = 0;
+
+const questions = [
+  { key: 'service', text: 'Какой ремонт вам нужен? Например: квартира под ключ, ванная или косметический.' },
+  { key: 'city', text: 'В каком городе находится объект?' },
+  { key: 'budget', text: 'Какой ориентировочный бюджет? Если пока не определились, напишите «не знаю».' },
+  { key: 'deadline', text: 'Когда хотите начать ремонт или закончить работы?' },
+  { key: 'details', text: 'Расскажите коротко о задаче: площадь, количество комнат или другие важные детали.' },
+];
 
 async function callTelegram(method, payload) {
   const response = await fetch(`${telegramApi}/${method}`, {
@@ -20,24 +29,78 @@ async function callTelegram(method, payload) {
   return result.result;
 }
 
-async function submitLead(message) {
-  const contact = message.from.username
-    ? `@${message.from.username}`
-    : `telegram:${message.from.id}`;
+function contactFor(message) {
+  return message.from.username ? `@${message.from.username}` : `telegram:${message.from.id}`;
+}
+
+function leadText(answers) {
+  return [
+    `Услуга: ${answers.service}`,
+    `Город: ${answers.city}`,
+    `Бюджет: ${answers.budget}`,
+    `Срок: ${answers.deadline}`,
+    `Детали: ${answers.details}`,
+  ].join('\n');
+}
+
+async function submitLead(message, answers) {
 
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       source: 'telegram',
-      contact,
-      message: message.text,
+      contact: contactFor(message),
+      message: leadText(answers),
       telegram_chat_id: String(message.chat.id),
+      answers,
     }),
   });
 
   if (!response.ok) {
     throw new Error(`n8n webhook returned ${response.status}`);
+  }
+}
+
+async function send(chatId, text) {
+  await callTelegram('sendMessage', { chat_id: chatId, text });
+}
+
+async function handleMessage(message) {
+  const text = message.text.trim();
+  const chatId = message.chat.id;
+  const command = text.toLowerCase().split(/\s+/)[0].split('@')[0];
+
+  if (command === '/start') {
+    sessions.set(chatId, { step: 0, answers: {} });
+    await send(chatId, 'Здравствуйте! Помогу передать заявку на ремонт менеджеру. Задам 5 коротких вопросов — это займёт около минуты.');
+    await send(chatId, questions[0].text);
+    return;
+  }
+
+  const session = sessions.get(chatId);
+  if (!session) {
+    await send(chatId, 'Здравствуйте! Чтобы начать оформление заявки, нажмите или отправьте /start.');
+    return;
+  }
+
+  const question = questions[session.step];
+  session.answers[question.key] = text;
+  session.step += 1;
+  if (session.step < questions.length) {
+    await send(chatId, questions[session.step].text);
+    return;
+  }
+
+  try {
+    await submitLead(message, session.answers);
+    sessions.delete(chatId);
+    await send(chatId, 'Спасибо! Заявка принята и передана менеджеру. Он свяжется с вами в ближайшее время.');
+  } catch (error) {
+    console.error(error.message);
+    // Keep answers so the client can retry the final message without filling the form again.
+    session.step = questions.length - 1;
+    await send(chatId, 'Не удалось передать заявку. Попробуйте отправить последнее сообщение ещё раз чуть позже.');
   }
 }
 
@@ -56,19 +119,8 @@ async function run() {
       const message = update.message;
       if (!message?.text) continue;
 
-      try {
-        await submitLead(message);
-        await callTelegram('sendMessage', {
-          chat_id: message.chat.id,
-          text: 'Спасибо! Заявка принята, менеджер скоро свяжется с вами.',
-        });
-      } catch (error) {
-        console.error(error.message);
-        await callTelegram('sendMessage', {
-          chat_id: message.chat.id,
-          text: 'Не удалось принять заявку. Попробуйте ещё раз чуть позже.',
-        });
-      }
+      try { await handleMessage(message); }
+      catch (error) { console.error(error.message); }
     }
   }
 }

@@ -2,12 +2,12 @@
 
 ## intake — обработка новой заявки
 
-1. Trigger: локальный Telegram polling-бот отправляет `POST` в n8n webhook `telegram-lead`.
+1. Trigger: клиент отправляет `/start`; Telegram-бот показывает вступление и последовательно спрашивает услугу, город, бюджет, срок и детали. После пятого ответа бот отправляет один `POST` в n8n webhook `telegram-lead`.
 2. Normalize: создать `lead_id`, привести текст и контакт к единому виду.
 3. Deduplicate: проверить в листе Leads сочетание `contact + message_hash`.
 4. AI extraction: извлечь данные промптом `prompts/lead-extract.md`.
 5. Validate: проверить JSON и допустимые значения priority.
-6. Save: записать строку в Leads и событие в Events.
+6. Save: записать строку в Leads и событие `lead_received` в Events. При одинаковом `contact + message_hash` обновить существующую строку, а не создавать дубль.
 7. Notify: отправить менеджеру краткую выжимку.
 8. Reply: на старте — только черновик; автоматическая отправка после тестирования.
 
