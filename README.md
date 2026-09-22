@@ -8,7 +8,7 @@
 
 1. Создайте Google-таблицу по шаблону `sheets/schema.md`.
 2. В n8n создайте credentials, ориентируясь на `n8n/credentials.example/README.md`.
-3. Соберите первый workflow из `docs/workflow-spec.md`.
+3. Импортируйте и запустите `n8n/workflows/01-intake-foundation.json` по инструкции в `n8n/workflows/README.md`.
 4. Вставьте prompt из `prompts/lead-extract.md` в AI-узел Gemini.
 5. Прогоните примеры из `tests/fixtures/`.
 

@@ -1,0 +1,73 @@
+{
+  "name": "01 · Lead intake foundation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4eafda29-1f14-4de7-8e4f-594be44555f4",
+      "name": "Manual trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f2dd5123-c9a9-4454-b887-05d3e1ec87dd",
+              "name": "source",
+              "value": "telegram",
+              "type": "string"
+            },
+            {
+              "id": "ad312508-8214-45b3-a9b3-1a2ad7b73091",
+              "name": "contact",
+              "value": "@ivan_petrov",
+              "type": "string"
+            },
+            {
+              "id": "3e00fa14-0dd5-4bff-a96a-c21c4ef36ab3",
+              "name": "message",
+              "value": "Здравствуйте! Нужен ремонт двухкомнатной квартиры в Минске. Бюджет около 25 000 долларов, начать хотим в ноябре.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d8871217-a446-4f0c-bdbd-7c2de4860423",
+      "name": "Demo lead",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const simpleHash = (value) => {\n  let hash = 5381;\n  for (const character of value) {\n    hash = ((hash << 5) + hash) ^ character.charCodeAt(0);\n  }\n  return (hash >>> 0).toString(16);\n};\n\nreturn items.map((item) => {\n  const source = String(item.json.source ?? 'unknown').trim().toLowerCase();\n  const contact = String(item.json.contact ?? '').trim();\n  const rawText = String(item.json.message ?? '').trim();\n\n  if (!contact || !rawText) {\n    throw new Error('A lead must contain contact and message fields.');\n  }\n\n  const normalizedText = rawText.replace(/\\s+/g, ' ');\n  const deduplicationKey = `${contact.toLowerCase()}|${normalizedText.toLowerCase()}`;\n\n  return {\n    json: {\n      lead_id: `lead_${Date.now()}_${Math.floor(Math.random() * 100000)}`,\n      created_at: new Date().toISOString(),\n      source,\n      contact,\n      raw_text: rawText,\n      normalized_text: normalizedText,\n      message_hash: simpleHash(deduplicationKey),\n      status: 'new'\n    }\n  };\n});"
+      },
+      "id": "cfda88fb-7b40-4c4c-a207-0231cf2e57bf",
+      "name": "Normalize lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Manual trigger": {
+      "main": [[{"node": "Demo lead", "type": "main", "index": 0}]]
+    },
+    "Demo lead": {
+      "main": [[{"node": "Normalize lead", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "efa610aa-e9ec-4d02-997d-202a9133d9ed",
+  "tags": []
+}
