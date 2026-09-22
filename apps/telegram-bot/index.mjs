@@ -10,11 +10,16 @@ const sessions = new Map();
 let offset = 0;
 
 const questions = [
-  { key: 'service', text: 'Какой ремонт вам нужен? Например: квартира под ключ, ванная или косметический.' },
+  {
+    key: 'service',
+    text: 'Какой ремонт вам нужен?',
+    options: ['Квартира под ключ', 'Ванная', 'Косметический', 'Другое'],
+  },
   { key: 'city', text: 'В каком городе находится объект?' },
-  { key: 'budget', text: 'Какой ориентировочный бюджет? Если пока не определились, напишите «не знаю».' },
-  { key: 'deadline', text: 'Когда хотите начать ремонт или закончить работы?' },
-  { key: 'details', text: 'Расскажите коротко о задаче: площадь, количество комнат или другие важные детали.' },
+  {
+    key: 'details',
+    text: 'Коротко опишите задачу: площадь, бюджет и желаемые сроки. Если чего-то пока не знаете — это нормально.',
+  },
 ];
 
 async function callTelegram(method, payload) {
@@ -37,14 +42,11 @@ function leadText(answers) {
   return [
     `Услуга: ${answers.service}`,
     `Город: ${answers.city}`,
-    `Бюджет: ${answers.budget}`,
-    `Срок: ${answers.deadline}`,
     `Детали: ${answers.details}`,
   ].join('\n');
 }
 
 async function submitLead(message, answers) {
-
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -58,12 +60,21 @@ async function submitLead(message, answers) {
   });
 
   if (!response.ok) {
-    throw new Error(`n8n webhook returned ${response.status}`);
+    throw new Error(`Lead intake endpoint returned ${response.status}`);
   }
 }
 
-async function send(chatId, text) {
-  await callTelegram('sendMessage', { chat_id: chatId, text });
+async function send(chatId, text, options = {}) {
+  await callTelegram('sendMessage', { chat_id: chatId, text, ...options });
+}
+
+async function askQuestion(chatId, step) {
+  const question = questions[step];
+  const replyMarkup = question.options
+    ? { keyboard: [question.options.slice(0, 2), question.options.slice(2)], resize_keyboard: true, one_time_keyboard: true }
+    : { remove_keyboard: true };
+
+  await send(chatId, `${step + 1}/${questions.length}. ${question.text}`, { reply_markup: replyMarkup });
 }
 
 async function handleMessage(message) {
@@ -73,14 +84,16 @@ async function handleMessage(message) {
 
   if (command === '/start') {
     sessions.set(chatId, { step: 0, answers: {} });
-    await send(chatId, 'Здравствуйте! Помогу передать заявку на ремонт менеджеру. Задам 5 коротких вопросов — это займёт около минуты.');
-    await send(chatId, questions[0].text);
+    await send(chatId, 'Здравствуйте! Помогу передать заявку на ремонт менеджеру. Три коротких шага — около минуты.');
+    await askQuestion(chatId, 0);
     return;
   }
 
   const session = sessions.get(chatId);
   if (!session) {
-    await send(chatId, 'Здравствуйте! Чтобы начать оформление заявки, нажмите или отправьте /start.');
+    sessions.set(chatId, { step: 0, answers: {} });
+    await send(chatId, 'Рад снова помочь. Начнём новую заявку.');
+    await askQuestion(chatId, 0);
     return;
   }
 
@@ -88,14 +101,14 @@ async function handleMessage(message) {
   session.answers[question.key] = text;
   session.step += 1;
   if (session.step < questions.length) {
-    await send(chatId, questions[session.step].text);
+    await askQuestion(chatId, session.step);
     return;
   }
 
   try {
     await submitLead(message, session.answers);
     sessions.delete(chatId);
-    await send(chatId, 'Спасибо! Заявка принята и передана менеджеру. Он свяжется с вами в ближайшее время.');
+    await send(chatId, 'Спасибо! Заявка принята. Менеджер свяжется с вами в ближайшее время.');
   } catch (error) {
     console.error(error.message);
     // Keep answers so the client can retry the final message without filling the form again.

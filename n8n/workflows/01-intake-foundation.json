@@ -1,27 +1,27 @@
 {
-  "name": "01 · Lead intake foundation",
+  "name": "01 · Приём заявок · MVP",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "telegram-lead",
-        "responseMode": "onReceived",
+        "responseMode": "lastNode",
         "options": {}
       },
       "id": "a5a9cd70-fc1d-49d6-978e-9a43c867102e",
-      "name": "Telegram lead webhook",
+      "name": "Приём заявки из Telegram",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [260, 460],
+      "position": [280, 540],
       "webhookId": "d1ec95d7-9c18-42fc-8d5a-2d1f807b89a4"
     },
     {
       "parameters": {},
       "id": "4eafda29-1f14-4de7-8e4f-594be44555f4",
-      "name": "Manual trigger",
+      "name": "Ручной запуск (проверка)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [260, 300]
+      "position": [280, 360]
     },
     {
       "parameters": {
@@ -50,31 +50,83 @@
         "options": {}
       },
       "id": "d8871217-a446-4f0c-bdbd-7c2de4860423",
-      "name": "Demo lead",
+      "name": "Тестовая заявка",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [480, 300]
+      "position": [520, 360]
     },
     {
       "parameters": {
-        "jsCode": "const simpleHash = (value) => {\n  let hash = 5381;\n  for (const character of value) {\n    hash = ((hash << 5) + hash) ^ character.charCodeAt(0);\n  }\n  return (hash >>> 0).toString(16);\n};\n\nreturn items.map((item) => {\n  const source = String(item.json.source ?? 'unknown').trim().toLowerCase();\n  const contact = String(item.json.contact ?? '').trim();\n  const rawText = String(item.json.message ?? '').trim();\n\n  if (!contact || !rawText) {\n    throw new Error('A lead must contain contact and message fields.');\n  }\n\n  const normalizedText = rawText.replace(/\\s+/g, ' ');\n  const deduplicationKey = `${contact.toLowerCase()}|${normalizedText.toLowerCase()}`;\n\n  return {\n    json: {\n      lead_id: `lead_${Date.now()}_${Math.floor(Math.random() * 100000)}`,\n      created_at: new Date().toISOString(),\n      source,\n      contact,\n      raw_text: rawText,\n      normalized_text: normalizedText,\n      message_hash: simpleHash(deduplicationKey),\n      status: 'new'\n    }\n  };\n});"
+        "jsCode": "const simpleHash = (value) => {\n  let hash = 5381;\n  for (const character of value) {\n    hash = ((hash << 5) + hash) ^ character.charCodeAt(0);\n  }\n  return (hash >>> 0).toString(16);\n};\n\nreturn items.map((item) => {\n  const source = String(item.json.source ?? 'unknown').trim().toLowerCase();\n  const contact = String(item.json.contact ?? '').trim();\n  const rawText = String(item.json.message ?? '').trim();\n\n  if (!contact || !rawText) {\n    throw new Error('A lead must contain contact and message fields.');\n  }\n\n  const normalizedText = rawText.replace(/\\s+/g, ' ');\n  const deduplicationKey = `${contact.toLowerCase()}|${normalizedText.toLowerCase()}`;\n\n  return {\n    json: {\n      lead_id: `lead_${Date.now()}_${Math.floor(Math.random() * 100000)}`,\n      created_at: new Date().toISOString(),\n      source,\n      contact,\n      telegram_chat_id: item.json.telegram_chat_id ? String(item.json.telegram_chat_id) : null,\n      answers: item.json.answers ?? {},\n      raw_text: rawText,\n      normalized_text: normalizedText,\n      message_hash: simpleHash(deduplicationKey),\n      status: 'new'\n    }\n  };\n});"
       },
       "id": "cfda88fb-7b40-4c4c-a207-0231cf2e57bf",
-      "name": "Normalize lead",
+      "name": "Нормализовать заявку",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 300]
+      "position": [800, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map((item) => ({\n  json: {\n    accepted: true,\n    lead_id: item.json.lead_id,\n    status: item.json.status\n  }\n}));"
+      },
+      "id": "b4f7a13c-e5e0-469e-b537-30c6d07d0da8",
+      "name": "Подготовить подтверждение",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 460]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Входящие данные\n\n**Telegram** — реальные заявки.\n\n**Ручной запуск → Тестовая заявка** — безопасная проверка без клиента.",
+        "height": 220,
+        "width": 500,
+        "color": 5
+      },
+      "id": "be3de6f6-4b57-425a-a4a9-0f95054f3f07",
+      "name": "Подсказка · вход",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 120]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Подготовка\n\nПроверяем обязательные поля, создаём ID, очищаем текст и строим ключ для поиска дублей.",
+        "height": 220,
+        "width": 260,
+        "color": 4
+      },
+      "id": "d5940c0c-5267-4c38-bd74-dd76f678e27c",
+      "name": "Подсказка · нормализация",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [760, 120]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Подтверждение\n\nБот получает успешный ответ только после нормализации. Следующий этап: **дубли → AI → Google Sheets → уведомление менеджеру**.",
+        "height": 220,
+        "width": 320,
+        "color": 3
+      },
+      "id": "5d9a53cf-6b60-4a79-941c-310bbd142c2d",
+      "name": "Подсказка · результат",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, 120]
     }
   ],
   "connections": {
-    "Manual trigger": {
-      "main": [[{"node": "Demo lead", "type": "main", "index": 0}]]
+    "Ручной запуск (проверка)": {
+      "main": [[{"node": "Тестовая заявка", "type": "main", "index": 0}]]
     },
-    "Demo lead": {
-      "main": [[{"node": "Normalize lead", "type": "main", "index": 0}]]
+    "Тестовая заявка": {
+      "main": [[{"node": "Нормализовать заявку", "type": "main", "index": 0}]]
     },
-    "Telegram lead webhook": {
-      "main": [[{"node": "Normalize lead", "type": "main", "index": 0}]]
+    "Приём заявки из Telegram": {
+      "main": [[{"node": "Нормализовать заявку", "type": "main", "index": 0}]]
+    },
+    "Нормализовать заявку": {
+      "main": [[{"node": "Подготовить подтверждение", "type": "main", "index": 0}]]
     }
   },
   "pinData": {},
