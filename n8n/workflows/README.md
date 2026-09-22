@@ -18,3 +18,7 @@
 ## Следующий учебный этап
 
 Экспортируйте обновлённый workflow из n8n и замените этим экспортом файл `01-intake-foundation.json` — так в Git всегда будет проверенная n8n-версия, а не догадка о версии узла. Не включайте в экспорт credentials или секреты.
+
+## Локальный Telegram вход
+
+В текущем локальном workflow добавлен `Webhook` с методом `POST` и путём `telegram-lead`. Локальный polling-бот из `apps/telegram-bot` передаёт в него `source`, `contact` и `message`. Webhook соединён с `Normalize lead`, поэтому далее используется тот же контур дедупликации и записи в Google Sheets.

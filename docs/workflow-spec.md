@@ -2,7 +2,7 @@
 
 ## intake — обработка новой заявки
 
-1. Trigger: Telegram webhook или web-form webhook.
+1. Trigger: локальный Telegram polling-бот отправляет `POST` в n8n webhook `telegram-lead`.
 2. Normalize: создать `lead_id`, привести текст и контакт к единому виду.
 3. Deduplicate: проверить в листе Leads сочетание `contact + message_hash`.
 4. AI extraction: извлечь данные промптом `prompts/lead-extract.md`.
