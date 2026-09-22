@@ -4,7 +4,9 @@
 
 ## Leads
 
-`lead_id, created_at, source, contact, raw_text, service, budget, currency, city, deadline, priority, summary, next_action, status, manager, first_response_at`
+`lead_id, created_at, source, contact, raw_text, service, budget, currency, city, deadline, priority, summary, next_action, status, manager, first_response_at, normalized_text, message_hash`
+
+`message_hash` — служебный ключ дедупликации. Он строится из нормализованного текста и контакта, поэтому одинаковое обращение одного клиента не создаёт вторую строку.
 
 Статусы: `new`, `needs_review`, `in_progress`, `qualified`, `won`, `lost`.
 

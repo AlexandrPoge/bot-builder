@@ -1,1 +1,1 @@
-lead_id,created_at,source,contact,raw_text,service,budget,currency,city,deadline,priority,summary,next_action,status,manager,first_response_at
+lead_id,created_at,source,contact,raw_text,service,budget,currency,city,deadline,priority,summary,next_action,status,manager,first_response_at,normalized_text,message_hash
